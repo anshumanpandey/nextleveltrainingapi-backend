@@ -25,6 +25,7 @@ namespace NextLevelTrainingApi.DAL.Repository
             //    Server = new MongoServerAddress(settings.Server, settings.Port)
             //};
 
+            
             MongoClientSettings settings = new MongoClientSettings();
             settings.Server = new MongoServerAddress(dbSettings.Server, dbSettings.Port);
 
@@ -37,8 +38,11 @@ namespace NextLevelTrainingApi.DAL.Repository
             settings.Credential = new MongoCredential("SCRAM-SHA-1", identity, evidence);
 
             MongoClient client = new MongoClient(settings);
+            
+            /*var settings = MongoClientSettings.FromConnectionString("mongodb+srv://mongodbuser:4505096@cluster0.i9pbf.mongodb.net/myFirstDatabase?retryWrites=true&w=majority");
+            var client = new MongoClient(settings);*/
 
-           // var client = new MongoClient(mongoClientSettings);
+             //var client = new MongoClient(mongoClientSettings);
             _mongoDatabase = client.GetDatabase(dbSettings.DatabaseName);
         }
 
@@ -69,6 +73,18 @@ namespace NextLevelTrainingApi.DAL.Repository
         public IGenericRepository<PostCode> PostCodeRepository
         {
             get { return postCodeRepository ?? (postCodeRepository = new GenericRepository<PostCode>(_mongoDatabase)); }
+        }
+
+        private IGenericRepository<Event> eventRepository;
+        public IGenericRepository<Event> EventRepository
+        {
+            get { return eventRepository ?? (eventRepository = new GenericRepository<Event>(_mongoDatabase)); }
+        }
+
+        private IGenericRepository<DynamicNotification> dynamicNotificationRepository;
+        public IGenericRepository<DynamicNotification> DynamicNotificationRepository
+        {
+            get { return dynamicNotificationRepository ?? (dynamicNotificationRepository = new GenericRepository<DynamicNotification>(_mongoDatabase)); }
         }
 
         private IGenericRepository<Booking> bookingRepository;

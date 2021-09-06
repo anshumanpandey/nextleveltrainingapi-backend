@@ -55,4 +55,10 @@
   </ItemGroup>
 
 
+  <ItemGroup>
+    <Compile Include="Services\UserService.cs" />
+    <Compile Include="Services\Interfaces\INotificationService.cs" />
+    <Compile Include="Services\Interfaces\IUserService.cs" />
+    <Compile Include="Services\NotificationService.cs" />
+  </ItemGroup>
 </Project>

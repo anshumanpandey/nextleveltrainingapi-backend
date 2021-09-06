@@ -470,6 +470,18 @@ namespace NextLevelTrainingApi.Controllers
                 }
             }
         }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
         //[HttpGet]
         //[Route("AppleNotificaion")]

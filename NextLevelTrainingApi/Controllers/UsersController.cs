@@ -28,6 +28,7 @@ using System.Drawing;
 using System.Text.RegularExpressions;
 using CorePush.Google;
 using CorePush.Apple;
+using NextLevelTrainingApi.Services.Interfaces;
 
 namespace NextLevelTrainingApi.Controllers
 {
@@ -42,8 +43,11 @@ namespace NextLevelTrainingApi.Controllers
         private readonly FCMSettings _fcmSettings;
         private readonly APNSettings _apnSettings;
         private EmailSettings _emailSettings;
+        private readonly INotificationService _notificationService;
         //private readonly HttpClient _httpClient;
-        public UsersController(IUnitOfWork unitOfWork, IUserContext userContext, IOptions<JWTAppSettings> jwtAppSettings, IOptions<EmailSettings> emailSettings, IOptions<FCMSettings> fcmSettings, IOptions<APNSettings> apnSettings)
+        public UsersController(IUnitOfWork unitOfWork, IUserContext userContext, IOptions<JWTAppSettings> jwtAppSettings,
+            IOptions<EmailSettings> emailSettings, IOptions<FCMSettings> fcmSettings, IOptions<APNSettings> apnSettings,
+            INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _userContext = userContext;
@@ -51,6 +55,7 @@ namespace NextLevelTrainingApi.Controllers
             _emailSettings = emailSettings.Value;
             _fcmSettings = fcmSettings.Value;
             _apnSettings = apnSettings.Value;
+            _notificationService = notificationService;
         }
 
         [HttpGet]
@@ -1879,7 +1884,7 @@ namespace NextLevelTrainingApi.Controllers
             };
 
             _unitOfWork.MessageRepository.InsertOne(message);
-
+            /*
             Notification notification = new Notification();
             notification.Id = Guid.NewGuid();
             notification.Text = "You have a message";
@@ -1897,6 +1902,9 @@ namespace NextLevelTrainingApi.Controllers
             {
                 ApplePushNotification(usr.DeviceToken, notification);
             }
+
+            */
+            _notificationService.SendEventNotification(messageVM.ReceiverId, EventType.NewMessage);
 
             return messageVM;
 
@@ -2137,13 +2145,14 @@ namespace NextLevelTrainingApi.Controllers
             }
             _unitOfWork.BookingRepository.InsertOne(book);
 
+            /*
             Notification notification = new Notification();
             notification.Id = Guid.NewGuid();
             notification.Text = "New booking received.";
             notification.CreatedDate = DateTime.Now;
             notification.UserId = booking.CoachID;
             _unitOfWork.NotificationRepository.InsertOne(notification);
-
+            */
             var usr = _unitOfWork.UserRepository.FindById(booking.PlayerID);
 
             var mailBookingSessions = string.Empty;
@@ -2154,7 +2163,7 @@ namespace NextLevelTrainingApi.Controllers
             mailBookingSessions = mailBookingSessions.Substring(0, mailBookingSessions.Length - 1);
             EmailHelper.SendEmail(usr.EmailID, _emailSettings, "booking", mailBookingSessions);
 
-            var coachUser = _unitOfWork.UserRepository.FindById(booking.CoachID);
+            /*var coachUser = _unitOfWork.UserRepository.FindById(booking.CoachID);
             if (coachUser.DeviceType != null && Convert.ToString(coachUser.DeviceType).ToLower() == Constants.ANDRIOD_DEVICE)
             {
                 AndriodPushNotification(coachUser.DeviceToken, notification);
@@ -2163,6 +2172,8 @@ namespace NextLevelTrainingApi.Controllers
             {
                  ApplePushNotification(coachUser.DeviceToken, notification);
             }
+            */
+             _notificationService.SendEventNotification(booking.CoachID, EventType.BookingCreated);
             return book;
 
         }

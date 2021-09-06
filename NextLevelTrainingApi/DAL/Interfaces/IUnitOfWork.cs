@@ -1,8 +1,5 @@
 ﻿using NextLevelTrainingApi.DAL.Entities;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace NextLevelTrainingApi.DAL.Interfaces
 {
@@ -20,5 +17,7 @@ namespace NextLevelTrainingApi.DAL.Interfaces
         IGenericRepository<HashTag> HashTagRepository { get; }
         IGenericRepository<Notification> NotificationRepository { get; }
         IGenericRepository<ApiKey> ApiKeyRepository { get; }
+        IGenericRepository<Event> EventRepository { get; }
+        IGenericRepository<DynamicNotification> DynamicNotificationRepository { get; }
     }
 }
