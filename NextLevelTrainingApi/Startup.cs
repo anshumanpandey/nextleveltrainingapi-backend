@@ -20,6 +20,8 @@ using Microsoft.IdentityModel.Tokens;
 using NextLevelTrainingApi.AuthDetails;
 using Microsoft.OpenApi.Models;
 using NextLevelTrainingApi.Helper;
+using NextLevelTrainingApi.Services;
+using NextLevelTrainingApi.Services.Interfaces;
 
 namespace NextLevelTrainingApi
 {
@@ -54,6 +56,8 @@ namespace NextLevelTrainingApi
 
             services.Configure<FCMSettings>(Configuration.GetSection("FCMSettings"));
             services.Configure<APNSettings>(Configuration.GetSection("APNSettings"));
+
+            services.AddScoped<INotificationService, NotificationService>();
 
             var key = Encoding.ASCII.GetBytes(appSettings.Secret);
             services.AddAuthentication(x =>

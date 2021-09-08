@@ -317,6 +317,18 @@ namespace NextLevelTrainingApi.Controllers
                 var responseString = await response.Content.ReadAsStringAsync();
             }
         }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
         private async Task ApplePushNotification(string deviceToken, Notification notification)
         {
