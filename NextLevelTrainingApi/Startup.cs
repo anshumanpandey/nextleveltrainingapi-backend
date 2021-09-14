@@ -22,6 +22,7 @@ using Microsoft.OpenApi.Models;
 using NextLevelTrainingApi.Helper;
 using NextLevelTrainingApi.Services;
 using NextLevelTrainingApi.Services.Interfaces;
+using Amazon.S3;
 
 namespace NextLevelTrainingApi
 {
@@ -57,8 +58,9 @@ namespace NextLevelTrainingApi
             services.Configure<FCMSettings>(Configuration.GetSection("FCMSettings"));
             services.Configure<APNSettings>(Configuration.GetSection("APNSettings"));
 
+            services.Configure<S3Settings>(Configuration.GetSection("S3Settings"));
             services.AddScoped<INotificationService, NotificationService>();
-
+            services.AddAWSService<IAmazonS3>(Configuration.GetAWSOptions());
             var key = Encoding.ASCII.GetBytes(appSettings.Secret);
             services.AddAuthentication(x =>
             {

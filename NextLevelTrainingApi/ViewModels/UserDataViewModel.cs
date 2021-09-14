@@ -31,7 +31,7 @@ namespace NextLevelTrainingApi.ViewModels
         public string DeviceToken { get; set; }
         public bool IsTempPassword { get; set; }
         public string FullName { get; set; }
-
+        public string UserName { get; set; }
         public string PostCode { get; set; }
 
         public string Address { get; set; }

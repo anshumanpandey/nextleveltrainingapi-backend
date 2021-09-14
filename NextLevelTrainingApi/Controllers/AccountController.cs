@@ -36,10 +36,10 @@ namespace NextLevelTrainingApi.Controllers
         [Route("Register")]
         public ActionResult<Users> Register(UserViewModel userVM)
         {
-            Users user = _unitOfWork.UserRepository.FindOne(x => x.EmailID.ToLower() == userVM.EmailID.ToLower());
+            Users user = _unitOfWork.UserRepository.FindOne(x => x.UserName == userVM.UserName);
             if (user != null)
             {
-                return BadRequest(new ErrorViewModel() { errors = new Error() { error = new string[] { "EmailID already registered." } } });
+                return BadRequest(new ErrorViewModel() { errors = new Error() { error = new string[] { "UserName already registered." } } });
             }
 
             user = new Users()
@@ -48,6 +48,7 @@ namespace NextLevelTrainingApi.Controllers
                 Address = userVM.Address,
                 State = userVM.State,
                 EmailID = userVM.EmailID,
+                UserName = userVM.UserName,
                 FullName = userVM.FullName,
                 MobileNo = userVM.MobileNo,
                 Role = userVM.Role,

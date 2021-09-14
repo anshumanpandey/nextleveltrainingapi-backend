@@ -30,6 +30,10 @@ using CorePush.Google;
 using CorePush.Apple;
 using Stripe;
 using NextLevelTrainingApi.Services.Interfaces;
+using Amazon.S3;
+using Amazon.S3.Transfer;
+using Amazon;
+
 namespace NextLevelTrainingApi.Controllers
 {
     [Route("api/[controller]")]
@@ -44,10 +48,12 @@ namespace NextLevelTrainingApi.Controllers
         private readonly APNSettings _apnSettings;
         private EmailSettings _emailSettings;
         private readonly INotificationService _notificationService;
+        private readonly S3Settings _s3Settings;
         //private readonly HttpClient _httpClient;
         public UsersController(IUnitOfWork unitOfWork, IUserContext userContext, IOptions<JWTAppSettings> jwtAppSettings,
             IOptions<EmailSettings> emailSettings, IOptions<FCMSettings> fcmSettings, IOptions<APNSettings> apnSettings,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IOptions<S3Settings> s3Settings)
         {
             _unitOfWork = unitOfWork;
             _userContext = userContext;
@@ -56,6 +62,7 @@ namespace NextLevelTrainingApi.Controllers
             _fcmSettings = fcmSettings.Value;
             _apnSettings = apnSettings.Value;
             _notificationService = notificationService;
+            _s3Settings = s3Settings.Value;
         }
 
         [HttpGet]
@@ -80,6 +87,7 @@ namespace NextLevelTrainingApi.Controllers
                 DeviceToken = user.DeviceToken,
                 EmailID = user.EmailID,
                 AboutUs = user.AboutUs,
+                UserName = user.UserName,
                 AccessToken = user.AccessToken,
                 Accomplishment = user.Accomplishment,
                 IsTempPassword = user.IsTempPassword,
@@ -1471,8 +1479,18 @@ namespace NextLevelTrainingApi.Controllers
         [Consumes("multipart/form-data")]
         public async Task<ActionResult<string>> UploadFile([FromForm] FileInputModel file)
         {
+
+
             if (file == null || file.File.Length == 0)
                 return Content("file not selected");
+
+            var user = _unitOfWork.UserRepository.FindById(_userContext.UserID);
+      
+            if (user == null)
+            {
+                return Unauthorized(new ErrorViewModel() { errors = new Error() { error = new string[] { "User not found." } } });
+            }
+
 
             String ret = Regex.Replace(file.File.FileName.Trim(), "[^A-Za-z0-9_. ]+", "");
             string fName = ret.Replace(" ", String.Empty);
@@ -1480,159 +1498,109 @@ namespace NextLevelTrainingApi.Controllers
             string[] data = fName.Split(extension);
             string baseUrl = _jwtAppSettings.AppBaseURL;
             string newFileName = data[0] + "-" + Guid.NewGuid().ToString() + extension;
+            var type = string.Empty;
+           
             if (file.Type.ToLower() == "post")
             {
-                var path = Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Post",
-                            newFileName);
-                if (!System.IO.Directory.Exists(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Post")))
-                {
-                    System.IO.Directory.CreateDirectory(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Post"));
-                }
-                using (var stream = new FileStream(path, FileMode.Create))
-                {
-                    await file.File.CopyToAsync(stream);
-                }
+                type = "Post";
+                await UploadToS3(newFileName, type, file.File);
 
-                if (file.File.ContentType.Contains("image/"))
-                {
-                    CompressImage(path, file.File);
-                }
+                var lastUrl = _s3Settings.BaseUrl + "/Upload/Post/" + newFileName; ;
                 var post = _unitOfWork.PostRepository.FilterBy(x => x.Id == file.Id).SingleOrDefault();
                 if (post != null)
                 {
-                    post.MediaURL = "/Upload/Post/" + newFileName;
+                    post.MediaURL = lastUrl;
                     _unitOfWork.PostRepository.ReplaceOne(post);
                 }
 
-                return baseUrl + "/Upload/Post/" + newFileName;
+                return lastUrl;
             }
             else if (file.Type.ToLower() == "location")
             {
-                var path = Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/TrainingLocation",
-                            newFileName);
-                if (!System.IO.Directory.Exists(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/TrainingLocation")))
-                {
-                    System.IO.Directory.CreateDirectory(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/TrainingLocation"));
-                }
-                using (var stream = new FileStream(path, FileMode.Create))
-                {
-                    await file.File.CopyToAsync(stream);
-                }
-                if (file.File.ContentType.Contains("image/"))
-                {
-                    CompressImage(path, file.File);
-                }
-                var user = _unitOfWork.UserRepository.FindById(_userContext.UserID);
+                type = "Location";
+                var lastUrl = _s3Settings.BaseUrl + "/Upload/TrainingLocation/" + newFileName;
+                await UploadToS3(newFileName, type, file.File);
+
                 var loc = user.TrainingLocations.Where(x => x.Id == file.Id).SingleOrDefault();
                 if (loc != null)
                 {
-                    loc.ImageUrl = "/Upload/TrainingLocation/" + newFileName;
+                    loc.ImageUrl = lastUrl;
 
                     var toremove = user.TrainingLocations.Where(x => x.Id == file.Id).FirstOrDefault();
                     user.TrainingLocations.Remove(toremove);
                     user.TrainingLocations.Add(loc);
                     _unitOfWork.UserRepository.ReplaceOne(user);
                 }
-                return baseUrl + "/Upload/TrainingLocation/" + newFileName;
+                return lastUrl;
             }
             else if (file.Type.ToLower() == "verification")
             {
-                var path = Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Verification",
-                            newFileName);
-                if (!System.IO.Directory.Exists(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Verification")))
-                {
-                    System.IO.Directory.CreateDirectory(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Verification"));
-                }
-                using (var stream = new FileStream(path, FileMode.Create))
-                {
-                    await file.File.CopyToAsync(stream);
-                }
-                if (file.File.ContentType.Contains("image/"))
-                {
-                    CompressImage(path, file.File);
-                }
-                var user = _unitOfWork.UserRepository.FindById(_userContext.UserID);
+                type = "Verification";
+                await UploadToS3(newFileName, type, file.File);
+
+                var lastUrl = _s3Settings.BaseUrl + "/Upload/Verification/" + newFileName; ;
                 if (user.VerificationDocument != null)
                 {
-                    user.VerificationDocument.Path = "/Upload/Verification/" + newFileName;
+                    user.VerificationDocument.Path = lastUrl;
                     _unitOfWork.UserRepository.ReplaceOne(user);
                 }
-                return baseUrl + "/Upload/Verification/" + newFileName;
+                return lastUrl;
             }
             else if (file.Type.ToLower() == "dbs")
             {
-                var path = Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/DBS",
-                            newFileName);
-                if (!System.IO.Directory.Exists(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/DBS")))
-                {
-                    System.IO.Directory.CreateDirectory(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/DBS"));
-                }
-                using (var stream = new FileStream(path, FileMode.Create))
-                {
-                    await file.File.CopyToAsync(stream);
-                }
-                if (file.File.ContentType.Contains("image/"))
-                {
-                    CompressImage(path, file.File);
-                }
-                var user = _unitOfWork.UserRepository.FindById(_userContext.UserID);
+                type = "DBS";
+                await UploadToS3(newFileName, type, file.File);
+
+                var lastUrl = _s3Settings.BaseUrl + "/Upload/DBS/" + newFileName; 
+
                 if (user.DBSCeritificate != null)
                 {
-                    user.DBSCeritificate.Path = "/Upload/DBS/" + newFileName;
+                    user.DBSCeritificate.Path = lastUrl;
                     _unitOfWork.UserRepository.ReplaceOne(user);
                 }
-                return baseUrl + "/Upload/DBS/" + newFileName;
+                return lastUrl;
             }
             else if (file.Type.ToLower() == "profile")
             {
-                var path = Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Profile",
-                            newFileName);
-                if (!System.IO.Directory.Exists(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Profile")))
-                {
-                    System.IO.Directory.CreateDirectory(Path.Combine(
-                            Directory.GetCurrentDirectory(), "wwwroot/Upload/Profile"));
-                }
-                using (var stream = new FileStream(path, FileMode.Create))
-                {
+                type = "Profile";
+                await UploadToS3(newFileName, type, file.File);
 
-                    await file.File.CopyToAsync(stream);
-                }
+                var lastUrl = _s3Settings.BaseUrl + "/Upload/Profile/" + newFileName;
 
-                if (file.File.ContentType.Contains("image/"))
-                {
-                    CompressImage(path, file.File);
-                }
-                var user = _unitOfWork.UserRepository.FindById(_userContext.UserID);
 
-                if (user == null)
-                {
-                    return Unauthorized(new ErrorViewModel() { errors = new Error() { error = new string[] { "User not found." } } });
-                }
-
-                user.ProfileImage = "/Upload/Profile/" + newFileName;
+                user.ProfileImage = lastUrl;
                 _unitOfWork.UserRepository.ReplaceOne(user);
                 if (user.ProfileImage.Contains("http://") || user.ProfileImage.Contains("https://"))
                 {
                     return user.ProfileImage;
                 }
 
-                return baseUrl + user.ProfileImage;
+                return lastUrl;
             }
             return "";
+        }
+
+
+        private async Task UploadToS3(string fileName,string type, IFormFile file)
+        {
+            using (var client = new AmazonS3Client(_s3Settings.Key, _s3Settings.Secret, RegionEndpoint.USWest2))
+            {
+                using (var newMemoryStream = new MemoryStream())
+                {
+                    file.CopyTo(newMemoryStream);
+
+                    var uploadRequest = new TransferUtilityUploadRequest
+                    {
+                        InputStream = newMemoryStream,
+                        Key = fileName,
+                        BucketName = $"{_s3Settings.BucketName}/Upload/" + type,
+                        CannedACL = S3CannedACL.PublicRead
+                    };
+
+                    var fileTransferUtility = new TransferUtility(client);
+                    await fileTransferUtility.UploadAsync(uploadRequest);
+                }
+            }
         }
 
         [HttpPost]
@@ -2458,7 +2426,7 @@ namespace NextLevelTrainingApi.Controllers
                  ApplePushNotification(coachUser.DeviceToken, notification);
             }
             */
-             _notificationService.SendEventNotification(booking.CoachID, EventType.BookingCreated);
+             _notificationService.SendEventNotification(booking.CoachID, Models.EventType.BookingCreated);
             return book;
 
         }

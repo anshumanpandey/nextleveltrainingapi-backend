@@ -15,6 +15,9 @@ namespace NextLevelTrainingApi.ViewModels
         public string State { get; set; }
 
         [Required]
+        public string UserName{get;set;}
+
+        [Required]
         public string EmailID { get; set; }
         [Required]
         public string PostCode { get; set; }
